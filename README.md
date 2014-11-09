@@ -3,8 +3,11 @@ A simple rate-limiting library for Python App Engine that uses Memcache to keep 
 You might use this library to rate-limit users of your endpoints. Because Memcache can handle a much higher rate of requests (QPS) you can also use this to prevent an abuser from depleting your Datastore quota (denial-of-service attack), e.g. by rate-limiting by IP subnet.
 
 ```python
-# Typical usage
+# Example usage
+
 from rate_limit.lib import Limiter, QuotaKey
+
+# Define event types to rate-limit
 class Events:
   USER_READ = 1
   USER_WRITE = 2
