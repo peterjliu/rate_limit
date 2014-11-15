@@ -51,13 +51,19 @@ class Limiter:
 
             return True
         else:
+            # we use the compare and set techinique described here
+            # https://cloud.google.com/appengine/docs/python/memcache/
             retries = 0
             while retries < max_retries: # Retry loop
-                counter = self._client.gets(key)
                 if counter >= self._qps.get(quota_key.event_type):
                     # Hit max
                     return False
                 if self._client.cas(key, counter + units, time=self._expire_time):
+                    return True
+
+                counter = self._client.gets(key)
+                if not counter:
+                    # counter may have expired, in which case budget has refilled
                     return True
                 retries = retries + 1
             raise MemcacheWriteError(
