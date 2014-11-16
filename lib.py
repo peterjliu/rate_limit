@@ -12,23 +12,22 @@ class MemcacheWriteError(Exception):
     def __str__(self):
         return repr(self.value)
 
+MEMCACHE_NAMESPACE='rate_limiter'
+
 class Limiter:
     """Object tracking QPS budget per second using App Engine MemCache
 
     Only Memcache is read/write.
 
     Args:
-        qps_dict(dict): Dictionary of event type (int) and max QPS. We assume
-        the minimum value of the max QPS is 1.
-        expire_time: Time in seconds after which budget resets.
-
+        config(dict): Dictionary of event type (int) and 
+            (max request budget (int), refresh period seconds (int)).
     """
     # TODO tune this value
     _MAX_RETRIES = 10
-    def __init__(self, qps_dict, expire_time=1):
-        self._qps = qps_dict
+    def __init__(self, config):
+        self.config = config
         self._client = memcache.Client()
-        self._expire_time = expire_time
 
     def CanSpend(self, quota_key, units=1, max_retries=_MAX_RETRIES):
         """Returns true if have budget to spend is within QPS limit
@@ -42,26 +41,28 @@ class Limiter:
         #  We use compare and set to avoid race conditions.
         #  https://cloud.google.com/appengine/docs/python/memcache/
         key = quota_key.key()
-        counter = self._client.gets(key)
+        counter = self._client.gets(key, namespace=MEMCACHE_NAMESPACE)
         if not counter:
+            (_, expire_time) = self.config.get(quota_key.event_type)
             self._client.add(key=key,
                          value=units,
-                         time=self._expire_time  # 1 second cache
+                         time=expire_time,
+                         namespace=MEMCACHE_NAMESPACE
                          )
 
             return True
         else:
-            # we use the compare and set techinique described here
-            # https://cloud.google.com/appengine/docs/python/memcache/
             retries = 0
             while retries < max_retries: # Retry loop
-                if counter >= self._qps.get(quota_key.event_type):
+                (budget, expire_time) = self.config.get(quota_key.event_type)
+                if counter >= budget:
                     # Hit max
                     return False
-                if self._client.cas(key, counter + units, time=self._expire_time):
+                if self._client.cas(key, counter + units,
+                        time=expire_time, namespace=MEMCACHE_NAMESPACE):
                     return True
 
-                counter = self._client.gets(key)
+                counter = self._client.gets(key, namespace=MEMCACHE_NAMESPACE)
                 if not counter:
                     # counter may have expired, in which case budget has refilled
                     return True

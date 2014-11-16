@@ -15,8 +15,8 @@ class Events:
   USER_WRITE = 2
 
 RATE_LIMIT_SPEC = {
-        Events.USER_READ: 2,
-        Events.USER_WRITE: 5
+        Events.USER_READ: (2, 1),
+        Events.USER_WRITE: (5, 1)
 }
 
 class RateLimitTestCase(unittest.TestCase):

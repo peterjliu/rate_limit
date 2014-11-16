@@ -14,8 +14,11 @@ class Events:
 
 RATE_LIMIT_SPEC = {
   # Limit User reads QPS to 10, and writes to 1
-  Events.USER_READ: 10,
-  Events.USER_WRITE: 1
+  Events.USER_READ: (10, 1)
+  Events.USER_WRITE: (1, 1)
+
+  # Limit 1 requests every 2 seconds i.e. 0.5 qps
+  Events.SMS_VERIFY: (1, 2)
 }
 
 l = Limiter(RATE_LIMIT_SPEC)
